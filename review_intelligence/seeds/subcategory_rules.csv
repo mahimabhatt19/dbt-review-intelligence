@@ -1,0 +1,13 @@
+subcategory,keyword_pattern,priority
+Hair Care,"hair shampoo|hair conditioner|hair mask|hair treatment|dry shampoo|scalp",10
+Hair Tools,"brush|comb|straightener|curler|blow dryer|flat iron",10
+Hair Color,"hair dye|hair color|hair colour|bleach|highlights",10
+Skincare,"moisturizer|face cream|serum|toner|cleanser|face wash|exfoliator|face mask",10
+Sun Care,"sunscreen|spf|sun block|tanning|self tan",10
+Body Care,"body lotion|body wash|shower gel|body oil|body scrub|deodorant",10
+Lip Products,"lipstick|lip gloss|lip balm|lip liner|lip mask",10
+Eye Makeup,"mascara|eyeliner|eye shadow|eyeshadow|eye liner|eye pencil",10
+Face Makeup,"foundation|concealer|blush|bronzer|highlighter|powder|primer",10
+Nail Care,"nail polish|nail file|nail clipper|manicure|pedicure|cuticle",10
+Fragrance,"perfume|cologne|fragrance|eau de|body spray|body mist",10
+Beauty Tools,"tweezer|sponge|applicator|mirror|scissors|razor",5

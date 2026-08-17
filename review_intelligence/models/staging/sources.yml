@@ -1,0 +1,60 @@
+version: 2
+
+sources:
+  - name: amazon_reviews
+    description: "Raw Amazon Beauty product reviews, sampled from the McAuley Lab 2023 dataset via HuggingFace."
+    schema: raw
+    tables:
+      - name: reviews
+        description: "Individual product review records — 50K rows sampled from ~700K total."
+        columns:
+          - name: rating
+            description: "Star rating from 1.0 to 5.0."
+            data_tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: [1.0, 2.0, 3.0, 4.0, 5.0]
+
+          - name: title
+            description: "Short user-supplied title for the review."
+
+          - name: text
+            description: "Full review body text — the goldmine for Phase 2 LLM enrichment."
+
+          - name: asin
+            description: "Amazon Standard Identification Number — unique product ID."
+            data_tests:
+              - not_null
+
+          - name: parent_asin
+            description: "Parent product ID (groups product variants — sizes, colors, etc.)."
+
+          - name: user_id
+            description: "Anonymized reviewer ID."
+            data_tests:
+              - not_null
+
+          - name: timestamp
+            description: "Review submission time (Unix milliseconds since epoch)."
+
+          - name: helpful_vote
+            description: "Count of users who marked this review helpful."
+
+          - name: verified_purchase
+            description: "Whether Amazon verified the reviewer actually bought the product."
+      - name: products
+        description: "Raw Amazon Beauty product metadata from McAuley Lab 2023 dataset — ~112K rows."
+        columns:
+          - name: parent_asin
+            description: "Amazon parent product ID. Grain of this table."
+            data_tests:
+              - not_null
+          - name: main_category
+            description: "Amazon's top-level category."
+          - name: title
+            description: "Product name/title."
+          - name: average_rating
+            description: "Amazon's public rating average."
+          - name: rating_number
+            description: "Total number of ratings on Amazon."

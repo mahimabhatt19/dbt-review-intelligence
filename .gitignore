@@ -1,0 +1,30 @@
+# dbt
+dbt_packages/
+target/
+logs/
+*.duckdb
+*.duckdb.wal
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# HuggingFace cache
+.hf_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local

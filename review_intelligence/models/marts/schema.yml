@@ -1,0 +1,250 @@
+version: 2
+
+models:
+
+  # ─────────────────────────────────────────────────────────
+  - name: fct_reviews
+    description: >
+      Review-level fact table. One row per review.
+      Enriched with sentiment_bucket, review_length_bucket, has_helpful_votes.
+    columns:
+      - name: review_key
+        description: "Surrogate key. Unique per review."
+        data_tests:
+          - not_null
+          - unique
+      - name: product_id
+        description: "Product being reviewed."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_products')
+                field: product_id
+      - name: reviewer_id
+        description: "Anonymized reviewer ID."
+        data_tests:
+          - not_null
+      - name: rating
+        description: "Integer 1-5."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5]
+      - name: sentiment_bucket
+        description: "positive / neutral / negative — derived from rating via sentiment_from_rating macro."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['positive', 'neutral', 'negative']
+      - name: review_length_bucket
+        description: "short / medium / long."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['short', 'medium', 'long']
+      - name: reviewed_at
+        description: "Timestamp of review."
+        data_tests:
+          - not_null
+
+  # ─────────────────────────────────────────────────────────
+  - name: dim_products
+    description: >
+      Product dimension. Combines stg_products (metadata) with int_product_review_stats
+      (our sample's review aggregations). Grain: one row per product_id.
+      Products with metadata but no reviews in our sample keep null aggregations
+      (left join by design).
+    columns:
+      - name: product_id
+        description: "Unique per product."
+        data_tests:
+          - not_null
+          - unique
+      - name: subcategory
+        description: "Derived from title-keyword rules; ~64% Uncategorized. Slated for LLM improvement in Phase 2."
+        data_tests:
+          - not_null
+      - name: our_review_count
+        description: "Number of reviews for this product in our 50K sample. 0 if absent."
+        data_tests:
+          - not_null
+          - positive_or_zero
+      - name: review_volume_bucket
+        description: "no_reviews / sparse / moderate / well_reviewed."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['no_reviews', 'sparse', 'moderate', 'well_reviewed']
+
+  # ─────────────────────────────────────────────────────────
+  - name: dim_reviewers
+    description: >
+      Reviewer dimension. One row per reviewer with lifetime metrics,
+      harshness, consistency, and trust flags.
+    columns:
+      - name: reviewer_id
+        description: "Unique per reviewer."
+        data_tests:
+          - not_null
+          - unique
+      - name: lifetime_review_count
+        description: "Total reviews this reviewer submitted in our sample."
+        data_tests:
+          - not_null
+      - name: reviewer_tendency
+        description: "harsh / balanced / generous / insufficient_data."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['harsh', 'balanced', 'generous', 'insufficient_data']
+      - name: engagement_bucket
+        description: "one_shot / occasional / regular / power_reviewer."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['one_shot', 'occasional', 'regular', 'power_reviewer']
+      - name: rating_consistency
+        description: "very_consistent / consistent / variable / highly_variable / insufficient_data."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['very_consistent', 'consistent', 'variable', 'highly_variable', 'insufficient_data']
+
+  # ─────────────────────────────────────────────────────────
+  - name: dim_categories
+    description: >
+      Category dimension. One row per (category_group, subcategory).
+      Aggregates product counts, review volume, and sentiment mix per category.
+    columns:
+      - name: category_group
+        description: "Top-level category group."
+        data_tests:
+          - not_null
+      - name: subcategory
+        description: "Derived subcategory."
+        data_tests:
+          - not_null
+      - name: product_count
+        description: "Number of products in this category with at least one review."
+        data_tests:
+          - not_null
+
+  # ─────────────────────────────────────────────────────────
+  - name: dim_dates
+    description: >
+      Calendar dimension. One row per date, covering our review data span +/- 30 days.
+      Standard fields: year/quarter/month/week + weekend flags + formatted labels.
+    columns:
+      - name: date
+        description: "The date. Unique."
+        data_tests:
+          - not_null
+          - unique
+      - name: year
+        description: "4-digit year."
+        data_tests:
+          - not_null
+      - name: is_weekend
+        description: "True on Saturday or Sunday."
+        data_tests:
+          - not_null
+
+  # ─────────────────────────────────────────────────────────
+  - name: fct_reviews_daily
+    description: >
+      Daily review aggregation. One row per date across all products.
+    columns:
+      - name: reviewed_date
+        description: "Date of reviews."
+        data_tests:
+          - not_null
+          - unique
+      - name: reviews_count
+        description: "Reviews submitted on this date."
+        data_tests:
+          - not_null
+      - name: avg_rating
+        description: "Mean rating on this date."
+        data_tests:
+          - not_null
+
+  # ─────────────────────────────────────────────────────────
+  - name: fct_reviews_monthly
+    description: >
+      Monthly review aggregation per product.
+      Grain: one row per (product_id, month_start_date).
+      Enables per-product time-series analysis.
+    columns:
+      - name: product_id
+        description: "Product being reviewed."
+        data_tests:
+          - not_null
+      - name: month_start_date
+        description: "First day of the month for this bucket."
+        data_tests:
+          - not_null
+      - name: review_count
+        description: "Reviews for this product in this month."
+        data_tests:
+          - not_null
+          - positive_or_zero
+      - name: avg_rating
+        description: "Mean rating for this product in this month."
+        data_tests:
+          - not_null
+
+  # ─────────────────────────────────────────────────────────
+  - name: mart_products_at_risk
+    description: >
+      Composite risk-score mart. One row per product with reviews.
+      Combines negative sentiment, harsh-reviewer signal, recency trend,
+      trust (verified %), and premium status into a weighted risk_score (0-100).
+      Volume-dampened so low-review products can't dominate the top.
+      Decision-support table — the "which products should we look at first?" queue.
+    columns:
+      - name: product_id
+        description: "Unique per product in this table."
+        data_tests:
+          - not_null
+          - unique
+      - name: risk_score
+        description: "Composite 0-100 score. Higher = more concerning."
+        data_tests:
+          - not_null
+          - positive_or_zero
+      - name: risk_tier
+        description: "insufficient_data / low / medium / high / critical."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['insufficient_data', 'low', 'medium', 'high', 'critical']
+
+  # ─────────────────────────────────────────────────────────
+  - name: mart_category_performance
+    description: >
+      Category-level performance scorecard segmented by reviewer tendency.
+      Grain: one row per (category_group, subcategory).
+      Includes polarization_score (generous avg - harsh avg) and category_health tier.
+    columns:
+      - name: subcategory
+        description: "Product subcategory."
+        data_tests:
+          - not_null
+      - name: total_reviews
+        description: "Total reviews across all products in this subcategory."
+        data_tests:
+          - not_null
+      - name: category_health
+        description: "healthy / stable / watch / struggling."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['healthy', 'stable', 'watch', 'struggling']

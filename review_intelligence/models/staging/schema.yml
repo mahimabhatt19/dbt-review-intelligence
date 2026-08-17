@@ -1,0 +1,133 @@
+version: 2
+
+models:
+  - name: stg_reviews
+    description: >
+      Cleaned, renamed, and typed Amazon Beauty reviews.
+      One row per review. Source of truth for all downstream models.
+      Sourced from the McAuley Lab 2023 Amazon Reviews dataset via HuggingFace.
+
+    columns:
+      - name: product_id
+        description: "Amazon parent product ID (parent_asin). Matches dim_products.product_id — the join key for product-level analysis."
+        data_tests:
+          - not_null
+
+      - name: variant_id
+        description: "Amazon variant ID (asin). Sub-product granularity — a single product_id has multiple variants (sizes, colors)."
+
+      - name: reviewer_id
+        description: "Anonymized reviewer ID."
+        data_tests:
+          - not_null
+
+      - name: review_title
+        description: "Short user-supplied review title."
+
+      - name: review_text
+        description: "Full review body — feeds Phase 2 LLM enrichment."
+        data_tests:
+          - not_null
+
+      - name: rating
+        description: "Integer star rating from 1 to 5."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5]
+
+      - name: helpful_vote_count
+        description: "Number of users who marked this review helpful."
+
+      - name: is_verified_purchase
+        description: "True if Amazon verified the reviewer bought the product."
+
+      - name: reviewed_at
+        description: "Timestamp of when the review was submitted."
+        data_tests:
+          - not_null
+
+      - name: reviewed_date
+        description: "Date of review (derived from reviewed_at) — used for time-series marts."
+
+      - name: review_text_length
+        description: "Character count of review body — useful for filtering + Phase 2 LLM cost estimation."
+        data_tests:
+          - not_null
+
+      - name: review_word_count_approx
+        description: "Approximate word count of review body (whitespace-based estimate)."
+  
+  # ─────────────────────────────────────────────────────────
+  - name: stg_products
+    description: >
+      Cleaned Amazon Beauty product metadata enriched with derived taxonomy.
+      Combines real source fields (title, brand, main_category, average_rating)
+      with two enrichments:
+        1. main_category → category_group normalization (via seed)
+        2. Title-keyword derived subcategory (via seed)
+      Grain: one row per product_id (parent_asin).
+
+    columns:
+      - name: product_id
+        description: "Amazon parent product ID (ASIN). Unique in this table."
+        data_tests:
+          - not_null
+          - unique
+
+      - name: product_title
+        description: "Product name from Amazon."
+        data_tests:
+          - not_null
+
+      - name: brand
+        description: "Brand / seller store name. Can be null when Amazon doesn't publish it."
+
+      - name: main_category
+        description: "Amazon's raw top-level category ('All Beauty' or 'Premium Beauty')."
+        data_tests:
+          - not_null
+
+      - name: category_group
+        description: "Normalized business-friendly category, derived via main_category_mapping seed."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Beauty', 'Beauty (Premium)', 'Unknown']
+
+      - name: is_premium
+        description: "True if the product falls under a premium Amazon category."
+        data_tests:
+          - not_null
+
+      - name: subcategory
+        description: >
+          Derived subcategory from title-keyword matching against the subcategory_rules seed.
+          'Uncategorized' when no rule matches — currently ~64% of products.
+          (Trade-off documented in project README; slated for LLM improvement in Phase 2.)
+        data_tests:
+          - not_null
+
+      - name: amazon_average_rating
+        description: "Amazon's public average rating for the product (float, 1.0–5.0)."
+
+      - name: amazon_rating_count
+        description: "Total number of ratings on Amazon for the product."
+
+      - name: price_usd
+        description: "Product price in USD. Null when Amazon doesn't publish a price (~84% of rows)."
+
+      - name: price_bucket
+        description: "Categorical price bucket derived from price_usd. 'unknown' when price is null."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['unknown', 'under_10', '10_to_25', '25_to_50', '50_to_100', 'over_100']
+
+      - name: is_new_or_unreviewed
+        description: "True if the product has no ratings on Amazon (new listings or unreviewed)."
+        data_tests:
+          - not_null

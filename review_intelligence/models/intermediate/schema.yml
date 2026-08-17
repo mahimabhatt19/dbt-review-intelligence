@@ -1,0 +1,78 @@
+version: 2
+
+models:
+
+  # ─────────────────────────────────────────────────────────
+  - name: int_reviewer_history
+    description: >
+      Per-reviewer lifetime aggregates including a "harshness score"
+      (their avg rating minus the global avg rating).
+      Used by dim_reviewers AND int_reviews_with_reviewer_context.
+    columns:
+      - name: reviewer_id
+        description: "Unique per reviewer in this table."
+        data_tests:
+          - not_null
+          - unique
+      - name: lifetime_review_count
+        description: "Total reviews this reviewer has submitted."
+        data_tests:
+          - not_null
+      - name: avg_rating_given
+        description: "Mean of all ratings this reviewer has given."
+        data_tests:
+          - not_null
+      - name: harshness_score
+        description: "Reviewer's avg rating minus global avg. Negative = harsher, positive = more generous."
+        data_tests:
+          - not_null
+      - name: reviewer_tendency
+        description: "Categorical: harsh / balanced / generous / insufficient_data."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['harsh', 'balanced', 'generous', 'insufficient_data']
+
+  # ─────────────────────────────────────────────────────────
+  - name: int_product_review_stats
+    description: >
+      Per-product review aggregations. Base for dim_products.
+      Extracted from monolithic dim_products SQL for reusability.
+    columns:
+      - name: product_id
+        description: "Unique per product in this table."
+        data_tests:
+          - not_null
+          - unique
+      - name: review_count
+        description: "Number of reviews for this product."
+        data_tests:
+          - not_null
+      - name: avg_rating
+        description: "Mean rating across all reviews for this product."
+        data_tests:
+          - not_null
+
+  # ─────────────────────────────────────────────────────────
+  - name: int_reviews_with_reviewer_context
+    description: >
+      Reviews enriched with the reviewer's harshness context.
+      Enables downstream marts to filter by reviewer tendency.
+    columns:
+      - name: review_key
+        description: "Unique per review."
+        data_tests:
+          - not_null
+          - unique
+      - name: product_id
+        description: "Product being reviewed."
+        data_tests:
+          - not_null
+      - name: reviewer_tendency
+        description: "Categorical: harsh / balanced / generous / insufficient_data."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['harsh', 'balanced', 'generous', 'insufficient_data']

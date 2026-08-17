@@ -1,0 +1,40 @@
+version: 2
+
+seeds:
+  - name: main_category_mapping
+    description: >
+      Maps Amazon's raw main_category values to a normalized category_group.
+      Injected reference data — commit-tracked, PR-reviewed.
+    columns:
+      - name: main_category
+        description: "Raw Amazon category value."
+        data_tests:
+          - not_null
+          - unique
+      - name: category_group
+        description: "Normalized business category."
+        data_tests:
+          - not_null
+      - name: is_premium
+        description: "Whether this category represents premium products."
+        data_tests:
+          - not_null
+
+  - name: subcategory_rules
+    description: >
+      Regex-style keyword patterns used to derive product subcategories from titles.
+      Priority column breaks ties when a title matches multiple rules.
+    columns:
+      - name: subcategory
+        description: "Subcategory label assigned when the pattern matches."
+        data_tests:
+          - not_null
+      - name: keyword_pattern
+        description: "|-separated regex pattern of keywords (lowercase) to match against product titles."
+        data_tests:
+          - not_null
+          - unique
+      - name: priority
+        description: "Higher priority wins when a product matches multiple rules."
+        data_tests:
+          - not_null
